@@ -1,6 +1,6 @@
 import tkinter as tk
 from tkinter import ttk, messagebox, filedialog
-import sqlite3
+import pymysql
 from openpyxl import Workbook, load_workbook
 from datetime import datetime
 import pandas as pd
@@ -27,7 +27,12 @@ class DarenApp:
         # ==== 新增的路径处理代码结束 ====
         
         # 初始化数据库连接（修改这行）
-        self.conn = sqlite3.connect(db_path)  # 使用完整路径
+        self.conn = pymysql.connect(
+        host="192.168.0.111",  # 你的局域网 IP 地址
+        user="admin",  # MySQL 用户名
+        password="123456",  # MySQL 密码
+        database="talent_management",  # MySQL 数据库名称
+        charset="utf8mb4")
         self.c = self.conn.cursor()
         
         # 控制变量
@@ -270,7 +275,7 @@ class DarenApp:
             return
         
         # 构建SQL查询条件
-        placeholders = ','.join(['?'] * len(names))
+        placeholders = ','.join(['%s'] * len(names))
         query = f"SELECT * FROM daren WHERE name IN ({placeholders})"
         
         try:
@@ -309,9 +314,9 @@ class DarenApp:
             sales_val = float(sales) if sales else 0.0
             self.c.execute(
                 """UPDATE daren
-                SET name = ?, shop = ?, sales = ?, sample_order = ?, 
-                    sku_name = ?, has_video = ?, remark = ?
-                WHERE id = ?""",
+                SET name = %s, shop = %s, sales = %s, sample_order = %s, 
+                    sku_name = %s,  has_video = %s,  remark = %s,
+                WHERE id = %s,""",
                 (name, shop, sales_val, sample_order, sku_name, 
                 1 if has_video else 0, remark, record_id)
             )
@@ -342,7 +347,7 @@ class DarenApp:
             sales_val = float(sales) if sales else 0.0
             self.c.execute(
                 """INSERT INTO daren (name, shop, sales, is_black, sample_order, sku_name, has_video, remark)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)""",
                 (name, shop, sales_val, 1 if self.is_black.get() else 0, sample_order, sku_name, has_video, remark)
             )
             self.conn.commit()
@@ -375,7 +380,7 @@ class DarenApp:
         # 执行查询
         name = self.search_entry.get()
         if name:
-            self.c.execute("SELECT * FROM daren WHERE name LIKE ?", ('%'+name+'%',))
+            self.c.execute("SELECT * FROM daren WHERE name LIKE %s,", ('%'+name+'%',))
         else:
             self.c.execute("SELECT * FROM daren")
         
@@ -453,14 +458,14 @@ class DarenApp:
             messagebox.showwarning("警告", "请先选择要删除的记录")
             return
         
-        if not messagebox.askyesno("确认删除", f"确定要删除选中的 {len(selected_items)} 条记录吗？"):
+        if not messagebox.askyesno("确认删除", f"确定要删除选中的 {len(selected_items)} 条记录吗%s,"):
             return
         
         try:
             deleted_count = 0
             for item in selected_items:
                 item_id = self.tree.item(item)['values'][0]
-                self.c.execute("DELETE FROM daren WHERE id=?", (item_id,))
+                self.c.execute("DELETE FROM daren WHERE id=%s,", (item_id,))
                 deleted_count += 1
             
             self.conn.commit()
@@ -570,7 +575,7 @@ class DarenApp:
             else:
                 name = self.search_entry.get()
                 if name:
-                    self.c.execute("SELECT * FROM daren WHERE name LIKE ?", ('%'+name+'%',))
+                    self.c.execute("SELECT * FROM daren WHERE name LIKE %s,", ('%'+name+'%',))
                 else:
                     self.c.execute("SELECT * FROM daren")
             
@@ -753,16 +758,17 @@ if __name__ == "__main__":
     # 初始化数据库
     conn = sqlite3.connect('daren.db')
     c = conn.cursor()
-    c.execute('''CREATE TABLE IF NOT EXISTS daren
-                 (id INTEGER PRIMARY KEY AUTOINCREMENT,
-                 name TEXT NOT NULL,
-                 shop TEXT,
-                 sales REAL,
-                 is_black INTEGER DEFAULT 0,
-                 sample_order TEXT DEFAULT '',
-                 sku_name TEXT DEFAULT '',
-                 has_video INTEGER DEFAULT 0,
-                 remark TEXT DEFAULT '')''')  # 确保有9个字段
+    c.execute('''CREATE TABLE IF NOT EXISTS talent (
+                 id INT AUTO_INCREMENT PRIMARY KEY,
+                 name VARCHAR(255) NOT NULL,
+                 shop VARCHAR(255),
+                 sales FLOAT,
+                 is_black BOOLEAN DEFAULT 0,
+                 sample_order VARCHAR(255),
+                 sku_name VARCHAR(255),
+                 has_video BOOLEAN DEFAULT 0,
+                 remark TEXT
+    )''')  # 确保有9个字段
     conn.commit()
     conn.close()
     
